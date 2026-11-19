@@ -1,0 +1,6 @@
+{
+  "name": "Chai Pana",
+  "description": "Chai Pana — Restaurant OS with QR mobile menu, live ChaiGlass order tracker, kitchen display, waiter floor map, owner reports, and admin CRM.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
