@@ -5,6 +5,10 @@ import {
   appendAlertToasts,
   detectNewHelpCalls,
   formatHelpCallNotification,
+  getActiveCallsByTable,
+  getFlashingCallTables,
+  hasActiveCallForTable,
+  isExplicitWaiterCall,
   normalizeHelpKind,
   pruneResolvedToasts,
 } from './staffAlerts';
@@ -91,6 +95,45 @@ describe('staffAlerts pure helpers', () => {
     assert.deepEqual(
       merged.map((t) => t.id),
       [2, 3, 4]
+    );
+  });
+
+  it('identifies active flashing tables, prioritizes Call Waiter, and stops flashing when resolved', () => {
+    const calls: Call[] = [
+      { id: 301, table: 2, kind: 'Pani', at: 1_000, done: false },
+      { id: 302, table: 5, kind: 'Waiter', at: 2_000, done: false },
+      { id: 303, table: 5, kind: 'Napkin', at: 2_400, done: false },
+      { id: 304, table: 7, kind: 'Waiter', at: 1_500, done: true },
+    ];
+
+    assert.equal(isExplicitWaiterCall('Waiter'), true);
+    assert.equal(isExplicitWaiterCall('Call Waiter'), true);
+    assert.equal(isExplicitWaiterCall('Pani'), false);
+
+    assert.equal(hasActiveCallForTable(calls, 5), true);
+    assert.equal(hasActiveCallForTable(calls, 2), true);
+    assert.equal(hasActiveCallForTable(calls, 7), false);
+    assert.equal(hasActiveCallForTable(calls, 1), false);
+
+    const byTable = getActiveCallsByTable(calls);
+    assert.equal(byTable.get(5)?.length, 2);
+    assert.equal(byTable.get(7), undefined);
+
+    const flashing = getFlashingCallTables(calls);
+    assert.deepEqual(
+      flashing.map((f) => ({ table: f.table, primaryKind: f.primaryKind, hasWaiterCall: f.hasWaiterCall })),
+      [
+        { table: 5, primaryKind: 'Call Waiter', hasWaiterCall: true },
+        { table: 2, primaryKind: 'Pani', hasWaiterCall: false },
+      ]
+    );
+
+    // Resolving Table 5 calls stops Table 5 from flashing immediately
+    const resolved = calls.map((c) => (c.table === 5 ? { ...c, done: true } : c));
+    assert.equal(hasActiveCallForTable(resolved, 5), false);
+    assert.deepEqual(
+      getFlashingCallTables(resolved).map((f) => f.table),
+      [2]
     );
   });
 });

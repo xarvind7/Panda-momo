@@ -31,7 +31,6 @@ import {
   QrCode,
   Receipt,
   RefreshCw,
-  RotateCcw,
   Save,
   Search,
   Settings,
@@ -43,6 +42,7 @@ import {
   Wifi,
 } from 'lucide-react';
 import { FoodQr, renderFoodQrStandeePng } from '../components/FoodQr';
+import { buildTableQrUrl } from '../landingSummary';
 import {
   agoMin,
   BRAND,
@@ -81,7 +81,6 @@ import {
   isChimeEnabled,
   logoutAdmin,
   playChime,
-  resetDemo,
   restockItem,
   saveMenuItem,
   savePromoOffer,
@@ -468,6 +467,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
   // QR
   const [copied, setCopied] = useState(false);
+  const [copiedTableQr, setCopiedTableQr] = useState<number | null>(null);
 
   // Settings
   const [chimeOn, setChimeOn] = useState(() => isChimeEnabled());
@@ -849,6 +849,39 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       showSakugaToast('Food-style Menu QR PNG download ho gaya!', 'green', 'SAVED!');
     } catch {
       showSakugaToast('QR download karne mein issue aaya.', 'red', 'ERR');
+    }
+  }
+
+  async function handleCopyTableQrLink(tableNum: number) {
+    const url = buildTableQrUrl(window.location.origin, window.location.pathname, tableNum);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedTableQr(tableNum);
+      showSakugaToast(`Table ${tableNum} ka QR link copy ho gaya!`, 'green', 'COPIED!');
+      window.setTimeout(() => setCopiedTableQr((cur) => (cur === tableNum ? null : cur)), 2000);
+    } catch {
+      showSakugaToast('Link copy nahi ho paya.', 'gold', 'INFO');
+    }
+  }
+
+  async function handleDownloadTableQr(tableNum: number) {
+    const url = buildTableQrUrl(window.location.origin, window.location.pathname, tableNum);
+    try {
+      const dataUrl = await renderFoodQrStandeePng(
+        url,
+        `${BRAND} · Table ${tableNum}`,
+        `Table ${tableNum} par scan karo aur seedha order bhejo`
+      );
+      if (!dataUrl) return;
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `panda-momo-table-${tableNum}-qr.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showSakugaToast(`Table ${tableNum} QR PNG download ho gaya!`, 'green', 'SAVED!');
+    } catch {
+      showSakugaToast(`Table ${tableNum} QR download karne mein issue aaya.`, 'red', 'ERR');
     }
   }
 
@@ -2409,83 +2442,173 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
           {/* ============ 6. QR ============ */}
           {tab === 'qr' && (
-            <div className="admin-qr-card admin-qr-food-card">
-              <span className="standee-food-kicker">
-                <UtensilsCrossed size={13} strokeWidth={2.4} aria-hidden="true" />
-                <span>STEAMED FRESH · FOOD MENU QR</span>
-              </span>
-              <Logo size={54} />
-              <h2 style={{ fontSize: 30 }}>{BRAND}</h2>
-              <p style={{ fontSize: 14, color: 'rgba(255, 251, 242, 0.8)' }}>
-                Table par scan karo aur seedha order bhejo
-              </p>
-              <div className="admin-qr-plate">
-                <FoodQr
-                  value={guestUrl}
-                  size={280}
-                  label={`${BRAND} Food-Style Guest Menu QR`}
-                />
-              </div>
-              <div className="standee-food-strip" aria-hidden="true">
-                <span>
-                  <UtensilsCrossed size={13} strokeWidth={2.2} /> Momos
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+              <div className="admin-qr-card admin-qr-food-card">
+                <span className="standee-food-kicker">
+                  <UtensilsCrossed size={13} strokeWidth={2.4} aria-hidden="true" />
+                  <span>UNIVERSAL CAFE QR · SABHI TABLES</span>
                 </span>
-                <span>·</span>
-                <span>
-                  <Coffee size={13} strokeWidth={2.2} /> Kulhad Chai
-                </span>
-                <span>·</span>
-                <span>
-                  <Flame size={13} strokeWidth={2.2} /> Chutney
-                </span>
+                <Logo size={54} />
+                <h2 style={{ fontSize: 30 }}>{BRAND}</h2>
+                <p style={{ fontSize: 14, color: 'rgba(255, 251, 242, 0.8)' }}>
+                  Table par scan karo aur seedha order bhejo
+                </p>
+                <div className="admin-qr-plate">
+                  <FoodQr
+                    value={guestUrl}
+                    size={260}
+                    label={`${BRAND} Food-Style Guest Menu QR`}
+                  />
+                </div>
+                <div className="standee-food-strip" aria-hidden="true">
+                  <span>
+                    <UtensilsCrossed size={13} strokeWidth={2.2} /> Momos
+                  </span>
+                  <span>·</span>
+                  <span>
+                    <Coffee size={13} strokeWidth={2.2} /> Kulhad Chai
+                  </span>
+                  <span>·</span>
+                  <span>
+                    <Flame size={13} strokeWidth={2.2} /> Chutney
+                  </span>
+                </div>
+                <code
+                  style={{
+                    fontSize: 12,
+                    wordBreak: 'break-all',
+                    background: 'rgba(255, 251, 242, 0.1)',
+                    padding: '6px 10px',
+                    borderRadius: 8,
+                    color: '#FDE68A',
+                  }}
+                >
+                  {guestUrl}
+                </code>
+                <div className="chip-row noprint" style={{ marginTop: 6, justifyContent: 'center' }}>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={handleDownloadAdminQr}
+                  >
+                    <Download size={15} strokeWidth={2.2} aria-hidden="true" />
+                    <span>Download PNG</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => window.print()}
+                  >
+                    <Printer size={15} strokeWidth={2.2} aria-hidden="true" />
+                    <span>Print All QRs</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="chip"
+                    onClick={handleCopyQrLink}
+                  >
+                    {copied ? (
+                      <>
+                        <Check size={14} strokeWidth={2.5} aria-hidden="true" />
+                        <span>Link copy ho gaya</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={14} strokeWidth={2.2} aria-hidden="true" />
+                        <span>Copy link</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-              <code
-                style={{
-                  fontSize: 12,
-                  wordBreak: 'break-all',
-                  background: 'rgba(255, 251, 242, 0.1)',
-                  padding: '6px 10px',
-                  borderRadius: 8,
-                  color: '#FDE68A',
-                }}
-              >
-                {guestUrl}
-              </code>
-              <div className="chip-row noprint" style={{ marginTop: 6, justifyContent: 'center' }}>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={handleDownloadAdminQr}
+
+              {/* Per-Table Individual QR Codes (#/t/1 .. #/t/N) */}
+              <section className="d-card" aria-label="Per-table QR codes">
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    flexWrap: 'wrap',
+                    marginBottom: 16,
+                  }}
                 >
-                  <Download size={15} strokeWidth={2.2} aria-hidden="true" />
-                  <span>Download PNG</span>
-                </button>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => window.print()}
-                >
-                  <Printer size={15} strokeWidth={2.2} aria-hidden="true" />
-                  <span>Print</span>
-                </button>
-                <button
-                  type="button"
-                  className="chip"
-                  onClick={handleCopyQrLink}
-                >
-                  {copied ? (
-                    <>
-                      <Check size={14} strokeWidth={2.5} aria-hidden="true" />
-                      <span>Link copy ho gaya</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy size={14} strokeWidth={2.2} aria-hidden="true" />
-                      <span>Copy link</span>
-                    </>
-                  )}
-                </button>
-              </div>
+                  <div>
+                    <h2 className="icon-heading" style={{ fontSize: 21 }}>
+                      <QrCode size={19} strokeWidth={2.2} color="var(--gold)" aria-hidden="true" />
+                      <span>Har Table ka Alag QR Code ({sortedTables.length} Tables)</span>
+                    </h2>
+                    <p className="dark-sub" style={{ marginTop: 3 }}>
+                      Har table ka apna direct QR hai — scan karte hi wahi table auto-lock ho jayegi (`#/t/1`, `#/t/2`…).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="admin-table-qr-grid" data-testid="admin-table-qr-grid">
+                  {sortedTables.map((t) => {
+                    const tUrl = buildTableQrUrl(
+                      window.location.origin,
+                      window.location.pathname,
+                      t.num
+                    );
+                    const isCopied = copiedTableQr === t.num;
+                    return (
+                      <div
+                        key={t.num}
+                        className="admin-table-qr-card"
+                        data-testid={`admin-table-qr-card-${t.num}`}
+                      >
+                        <div className="admin-table-qr-head">
+                          <strong className="admin-table-qr-num tabular-nums">
+                            Table {t.num}
+                          </strong>
+                          <span className="admin-table-qr-waiter">{t.waiter}</span>
+                        </div>
+                        <div className="admin-table-qr-plate">
+                          <FoodQr
+                            value={tUrl}
+                            size={168}
+                            label={`Table ${t.num} Direct Menu QR`}
+                          />
+                        </div>
+                        <code className="admin-table-qr-url">
+                          #/t/{t.num}
+                        </code>
+                        <div className="admin-table-qr-actions noprint">
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            onClick={() => handleDownloadTableQr(t.num)}
+                            aria-label={`Download Table ${t.num} QR PNG`}
+                          >
+                            <Download size={13} strokeWidth={2.3} aria-hidden="true" />
+                            <span>PNG</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-ghost-dark"
+                            onClick={() => handleCopyTableQrLink(t.num)}
+                            aria-label={`Copy Table ${t.num} QR link`}
+                          >
+                            {isCopied ? (
+                              <>
+                                <Check size={13} strokeWidth={2.5} aria-hidden="true" />
+                                <span>Copied</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy size={13} strokeWidth={2.2} aria-hidden="true" />
+                                <span>Copy</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
             </div>
           )}
 
@@ -2855,25 +2978,6 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 >
                   <Trash2 size={15} strokeWidth={2.2} aria-hidden="true" />
                   <span>Clear orders &amp; calls</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="btn-ghost-dark"
-                  onClick={() =>
-                    setConfirmState({
-                      title: 'Demo data reset karo?',
-                      message: 'Menu, stock, orders aur reviews fresh demo data par wapas aa jayenge.',
-                      confirmLabel: 'Reset',
-                      onConfirm: () => {
-                        resetDemo();
-                        setConfirmState(null);
-                      },
-                    })
-                  }
-                >
-                  <RotateCcw size={15} strokeWidth={2.2} aria-hidden="true" />
-                  <span>Reset demo data</span>
                 </button>
               </div>
             </div>

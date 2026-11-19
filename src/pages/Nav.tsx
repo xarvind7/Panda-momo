@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { BRAND } from '../data';
 import { useSyncMeta } from '../store';
-import { Logo } from '../ui';
+import { Logo, ThemeAndSoundControls } from '../ui';
 
 type RouteKey = 'staff' | 'kitchen' | 'owner' | 'admin';
 
@@ -49,6 +49,7 @@ export default function Nav({ active }: { active: RouteKey }) {
       </nav>
 
       <div className="top-nav-cta">
+        <ThemeAndSoundControls />
         <span
           className={`nav-sync-status ${syncMeta.connected ? 'is-live' : 'is-reconnecting'}`}
           title={

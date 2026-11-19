@@ -57,3 +57,22 @@ export function buildMasterQrUrl(origin: string, pathname: string): string {
   const cleanPath = pathname.startsWith('/') ? pathname : `/${pathname}`;
   return `${cleanOrigin}${cleanPath}#/m`;
 }
+
+/**
+ * Builds a table-specific Guest QR URL pointing directly to Table N (#/t/<num>).
+ * Also strips `/admin` if generated from the standalone Admin route so QR links
+ * always open the customer app cleanly.
+ */
+export function buildTableQrUrl(
+  origin: string,
+  pathname: string,
+  tableNum: number
+): string {
+  const cleanOrigin = origin.replace(/\/+$/, '');
+  const safeNum = Math.max(1, Math.floor(Number(tableNum) || 1));
+  let normalizedPath = pathname.startsWith('/') ? pathname : `/${pathname}`;
+  if (/^\/admin\/?$/i.test(normalizedPath)) {
+    normalizedPath = '/';
+  }
+  return `${cleanOrigin}${normalizedPath}#/t/${safeNum}`;
+}

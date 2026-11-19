@@ -4,6 +4,7 @@ import {
   ArrowRight,
   Bell,
   BellOff,
+  BellRing,
   Check,
   MessageCircle,
   Minus,
@@ -48,8 +49,11 @@ import {
   detectNewHelpCalls,
   dispatchBrowserNotification,
   formatHelpCallNotification,
+  getActiveCallsByTable,
   getBrowserNotifEnabledPref,
   getBrowserNotificationPermission,
+  getFlashingCallTables,
+  isExplicitWaiterCall,
   normalizeHelpKind,
   pruneResolvedToasts,
   requestBrowserNotificationPermission,
@@ -232,6 +236,18 @@ export default function Staff() {
     [state.calls]
   );
 
+  const activeCallsByTable = useMemo(
+    () => getActiveCallsByTable(state.calls),
+    [state.calls]
+  );
+
+  const flashingTables = useMemo(
+    () => getFlashingCallTables(state.calls),
+    [state.calls]
+  );
+
+  const activeTableCalls = activeCallsByTable.get(activeTable) ?? [];
+
   const readyOrders = useMemo(
     () =>
       state.orders
@@ -403,45 +419,117 @@ export default function Staff() {
           )}
         </div>
 
-        {/* Alerts panel (only when something pending) */}
+        {/* Flashing Call Waiter Notification Beacon (activates whenever any table calls waiter/help) */}
         <AnimatePresence>
-          {(openCalls.length > 0 || readyOrders.length > 0) && (
+          {flashingTables.length > 0 && (
             <motion.section
-              className="alerts-box"
-              aria-label="Pending alerts"
+              className="staff-call-beacon"
+              role="alert"
+              aria-live="assertive"
+              aria-label="Active Call Waiter visual alerts"
+              data-testid="staff-call-flash-banner"
+              initial={{ opacity: 0, y: -12, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.98 }}
+              transition={SPRING}
+            >
+              <div className="staff-call-beacon-head">
+                <div className="staff-call-beacon-title-wrap">
+                  <span className="staff-call-beacon-icon" aria-hidden="true">
+                    <BellRing size={19} strokeWidth={2.4} />
+                  </span>
+                  <div>
+                    <div className="staff-call-beacon-kicker">
+                      <span className="staff-call-beacon-dot" aria-hidden="true" />
+                      <span>
+                        CALL WAITER ALERT ·{' '}
+                        {flashingTables.map((ft) => `Table ${ft.table}`).join(', ')}
+                      </span>
+                    </div>
+                    <div className="staff-call-beacon-sub">
+                      {flashingTables.length === 1
+                        ? `Table ${flashingTables[0].table} par guest waiter bula raha hai!`
+                        : `${flashingTables.length} tables par active waiter calls hain!`}
+                    </div>
+                  </div>
+                </div>
+                <span className="staff-call-beacon-count tabular-nums">
+                  {openCalls.length} Active
+                </span>
+              </div>
+
+              <div className="staff-call-beacon-list">
+                <AnimatePresence initial={false}>
+                  {openCalls.map((c) => {
+                    const kindLabel = normalizeHelpKind(c.kind);
+                    const isWaiter = isExplicitWaiterCall(c.kind);
+                    return (
+                      <motion.div
+                        key={c.id}
+                        layout
+                        className={`staff-call-beacon-row ${isWaiter ? 'is-waiter' : ''}`}
+                        data-testid={`staff-call-row-t${c.table}`}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 14 }}
+                        transition={SPRING}
+                      >
+                        <div className="staff-call-beacon-info">
+                          <span className="staff-call-table-pill tabular-nums">
+                            T{c.table}
+                          </span>
+                          <div>
+                            <strong className="dish-inline-label">
+                              <span>
+                                Table {c.table} · {kindLabel}
+                              </span>
+                            </strong>
+                            <div className="staff-call-beacon-meta tabular-nums">
+                              Waiter: {waiterOf(state, c.table)} · {agoMin(c.at, now)}m pehle
+                            </div>
+                          </div>
+                        </div>
+                        <div className="staff-call-beacon-actions">
+                          <button
+                            type="button"
+                            className="btn-ghost-dark"
+                            onClick={() => {
+                              setSelectedTable(c.table);
+                              setDraft([]);
+                            }}
+                          >
+                            Table {c.table} dekho
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-sm staff-call-resolve-btn"
+                            onClick={() => resolveCall(c.id)}
+                          >
+                            <Check size={14} strokeWidth={2.5} aria-hidden="true" />
+                            <span>Aa raha hu</span>
+                          </button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+              </div>
+            </motion.section>
+          )}
+        </AnimatePresence>
+
+        {/* Ready Orders panel (only when orders are ready to serve) */}
+        <AnimatePresence>
+          {readyOrders.length > 0 && (
+            <motion.section
+              className="alerts-box alerts-box-ready"
+              aria-label="Ready orders to serve"
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={SPRING}
             >
               <AnimatePresence initial={false}>
-                {openCalls.map((c) => (
-                  <motion.div
-                    key={c.id}
-                    layout
-                    className="alert-row"
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 12 }}
-                    transition={SPRING}
-                  >
-                    <div>
-                      <strong className="dish-inline-label">
-                        <Bell size={15} strokeWidth={2.3} color="var(--gold)" aria-hidden="true" />
-                        <span>
-                          Table {c.table} · {c.kind} maanga ({waiterOf(state, c.table)})
-                        </span>
-                      </strong>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-sm"
-                      onClick={() => resolveCall(c.id)}
-                    >
-                      Aa raha hu
-                    </button>
-                  </motion.div>
-                ))}
                 {readyOrders.map((o) => (
                   <motion.div
                     key={o.id}
@@ -594,9 +682,14 @@ export default function Staff() {
                     type="button"
                     role="tab"
                     aria-selected={floorFilter === f.id}
-                    className={`crm-seg-btn ${floorFilter === f.id ? 'on' : ''}`}
+                    className={`crm-seg-btn ${floorFilter === f.id ? 'on' : ''} ${
+                      f.id === 'help' && f.count > 0 ? 'has-flash-alert' : ''
+                    }`}
                     onClick={() => setFloorFilter(f.id)}
                   >
+                    {f.id === 'help' && f.count > 0 && (
+                      <span className="staff-seg-flash-dot" aria-hidden="true" />
+                    )}
                     <span>{f.label}</span>
                     <span className="crm-seg-cnt tabular-nums">{f.count}</span>
                   </button>
@@ -616,12 +709,25 @@ export default function Staff() {
                     const guestName = tOrders.find((o) => o.customer)?.customer;
                     const oldestAt = tOrders[0]?.createdAt;
                     const isSel = activeTable === t;
+                    const tCalls = activeCallsByTable.get(t) ?? [];
+                    const isCalling = tCalls.length > 0;
+                    const waiterCall = tCalls.find((c) => isExplicitWaiterCall(c.kind));
+                    const callBadgeText = waiterCall
+                      ? 'CALL WAITER'
+                      : isCalling
+                      ? normalizeHelpKind(tCalls[0].kind).toUpperCase()
+                      : STATUS_WORD[st];
                     return (
                       <motion.button
                         key={t}
                         layout
                         type="button"
-                        className={`table-tile st-border-${st} ${isSel ? 'selected' : ''}`}
+                        data-testid={`staff-table-tile-${t}`}
+                        data-table={t}
+                        data-calling={isCalling ? 'true' : 'false'}
+                        className={`table-tile st-border-${st} ${isSel ? 'selected' : ''} ${
+                          isCalling ? 'table-tile-flashing' : ''
+                        } ${waiterCall ? 'is-waiter-call' : ''}`}
                         whileHover={{ y: -2 }}
                         whileTap={{ scale: 0.96 }}
                         transition={SPRING}
@@ -630,16 +736,33 @@ export default function Staff() {
                           setDraft([]);
                         }}
                         aria-pressed={isSel}
+                        aria-label={
+                          isCalling
+                            ? `Table ${t} — ${callBadgeText} active`
+                            : `Table ${t} — ${STATUS_WORD[st]}`
+                        }
                       >
                         <div className="table-tile-top">
                           <div className="table-tile-num tabular-nums">T{t}</div>
-                          {oldestAt && (
-                            <span className="table-tile-age tabular-nums">
-                              {agoMin(oldestAt, now)}m
+                          {isCalling ? (
+                            <span
+                              className="table-tile-flash-beacon"
+                              aria-hidden="true"
+                              title="Call Waiter active"
+                            >
+                              <BellRing size={13} strokeWidth={2.5} />
                             </span>
+                          ) : (
+                            oldestAt && (
+                              <span className="table-tile-age tabular-nums">
+                                {agoMin(oldestAt, now)}m
+                              </span>
+                            )
                           )}
                         </div>
-                        <span className={`st-tag st-${st}`}>{STATUS_WORD[st]}</span>
+                        <span className={`st-tag st-${st} ${isCalling ? 'st-tag-flashing' : ''}`}>
+                          {callBadgeText}
+                        </span>
                         <div className="table-tile-bill tabular-nums">
                           {st !== 'free' && bill > 0 ? fmt(bill) : waiterOf(state, t)}
                         </div>
@@ -762,6 +885,36 @@ export default function Staff() {
                 </button>
               </div>
             </div>
+
+            {activeTableCalls.length > 0 && (
+              <div
+                className="staff-detail-call-flash"
+                role="alert"
+                data-testid={`staff-detail-call-t${activeTable}`}
+              >
+                <div className="staff-detail-call-head">
+                  <BellRing size={16} strokeWidth={2.4} aria-hidden="true" />
+                  <span>Table {activeTable} par Active Request</span>
+                </div>
+                <div className="staff-detail-call-items">
+                  {activeTableCalls.map((c) => (
+                    <div key={c.id} className="staff-detail-call-row">
+                      <span>
+                        <strong>{normalizeHelpKind(c.kind)}</strong> · {agoMin(c.at, now)}m pehle
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-sm staff-call-resolve-btn"
+                        onClick={() => resolveCall(c.id)}
+                      >
+                        <Check size={13} strokeWidth={2.6} aria-hidden="true" />
+                        <span>Aa raha hu</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {selOrders.length === 0 ? (
               <p className="dark-sub" style={{ marginBottom: 16 }}>

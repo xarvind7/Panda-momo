@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeSeed } from './data';
-import { buildMasterQrUrl, computeLandingSummary } from './landingSummary';
+import { buildMasterQrUrl, buildTableQrUrl, computeLandingSummary } from './landingSummary';
 
 describe('landingSummary pure helpers', () => {
   it('computes accurate table availability, dish count, kitchen queue, and help calls', () => {
@@ -44,6 +44,21 @@ describe('landingSummary pure helpers', () => {
     assert.equal(
       buildMasterQrUrl('http://localhost:3000', '/cafe/'),
       'http://localhost:3000/cafe/#/m'
+    );
+  });
+
+  it('builds table-specific QR target URLs pointing to #/t/<tableNum> and strips /admin', () => {
+    assert.equal(
+      buildTableQrUrl('https://pandamomo.in/', '/', 5),
+      'https://pandamomo.in/#/t/5'
+    );
+    assert.equal(
+      buildTableQrUrl('http://localhost:3000', '/admin', 10),
+      'http://localhost:3000/#/t/10'
+    );
+    assert.equal(
+      buildTableQrUrl('http://localhost:3000', '/cafe/', 3),
+      'http://localhost:3000/cafe/#/t/3'
     );
   });
 });

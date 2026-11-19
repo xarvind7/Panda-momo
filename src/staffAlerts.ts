@@ -29,6 +29,80 @@ export function normalizeHelpKind(kind: string): string {
   return trimmed;
 }
 
+export function isExplicitWaiterCall(kind: string): boolean {
+  const norm = normalizeHelpKind(kind).toLowerCase();
+  return norm === 'call waiter' || norm.includes('waiter');
+}
+
+export interface FlashingTableAlert {
+  table: number;
+  calls: Call[];
+  hasWaiterCall: boolean;
+  primaryKind: string;
+  oldestAt: number;
+}
+
+/**
+ * Pure helper: groups all unresolved (open) help calls by table number,
+ * ordered oldest-first within each table.
+ */
+export function getActiveCallsByTable(calls: readonly Call[]): Map<number, Call[]> {
+  const map = new Map<number, Call[]>();
+  const open = calls
+    .filter((c) => !c.done)
+    .sort((a, b) => (a.at !== b.at ? a.at - b.at : a.id - b.id));
+
+  for (const call of open) {
+    const existing = map.get(call.table);
+    if (existing) {
+      existing.push(call);
+    } else {
+      map.set(call.table, [call]);
+    }
+  }
+  return map;
+}
+
+/**
+ * Pure helper: returns true if a specific table has any active (unresolved)
+ * Call Waiter or help request that should flash on the Staff floor map.
+ */
+export function hasActiveCallForTable(
+  calls: readonly Call[],
+  tableNum: number
+): boolean {
+  return calls.some((c) => !c.done && c.table === tableNum);
+}
+
+/**
+ * Pure helper: builds a deterministic list of tables currently flashing on the
+ * Staff page, prioritizing active Call Waiter requests and oldest waiting tables.
+ */
+export function getFlashingCallTables(calls: readonly Call[]): FlashingTableAlert[] {
+  const byTable = getActiveCallsByTable(calls);
+  const alerts: FlashingTableAlert[] = [];
+
+  for (const [table, tableCalls] of byTable.entries()) {
+    const waiterCall = tableCalls.find((c) => isExplicitWaiterCall(c.kind));
+    const primary = waiterCall ?? tableCalls[0];
+    alerts.push({
+      table,
+      calls: tableCalls,
+      hasWaiterCall: Boolean(waiterCall),
+      primaryKind: normalizeHelpKind(primary.kind),
+      oldestAt: tableCalls[0].at,
+    });
+  }
+
+  alerts.sort((a, b) => {
+    if (a.hasWaiterCall !== b.hasWaiterCall) return a.hasWaiterCall ? -1 : 1;
+    if (a.oldestAt !== b.oldestAt) return a.oldestAt - b.oldestAt;
+    return a.table - b.table;
+  });
+
+  return alerts;
+}
+
 /**
  * Pure diff helper: returns newly arrived unresolved help calls
  * that were not in `seenIds`, sorted oldest-to-newest, plus an updated

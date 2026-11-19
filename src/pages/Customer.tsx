@@ -19,6 +19,7 @@ import {
   Leaf,
   Minus,
   Plus,
+  QrCode,
   Receipt,
   Search,
   Send,
@@ -79,9 +80,11 @@ import {
   Logo,
   SakugaRating,
   SPRING,
+  ThemeAndSoundControls,
 } from '../ui';
 import { showSakugaToast } from '../sakuga';
 import ReceiptPrinter from '../ReceiptPrinter';
+import TableQrSheet from '../components/TableQrSheet';
 
 type GuestTab = 'menu' | 'order' | 'bill';
 
@@ -158,6 +161,8 @@ export default function Customer({ initialTable }: { initialTable: number | null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialTable]);
+
+  const [qrModalTable, setQrModalTable] = useState<number | null>(null);
 
   useEffect(() => {
     if (table !== null && !tableNums.includes(table)) {
@@ -521,12 +526,15 @@ export default function Customer({ initialTable }: { initialTable: number | null
     return (
       <div className="guest-welcome">
         <div className="guest-welcome-inner">
-          <div className="guest-step-bar" aria-label="Onboarding progress">
-            <span className="guest-step-item is-active">1. Check-In</span>
-            <span aria-hidden="true">→</span>
-            <span className="guest-step-item">{table ? `Table ${table}` : '2. Table'}</span>
-            <span aria-hidden="true">→</span>
-            <span className="guest-step-item">Menu</span>
+          <div className="guest-welcome-topbar">
+            <div className="guest-step-bar" aria-label="Onboarding progress">
+              <span className="guest-step-item is-active">1. Check-In</span>
+              <span aria-hidden="true">→</span>
+              <span className="guest-step-item">{table ? `Table ${table}` : '2. Table'}</span>
+              <span aria-hidden="true">→</span>
+              <span className="guest-step-item">Menu</span>
+            </div>
+            <ThemeAndSoundControls compact />
           </div>
 
           <motion.div
@@ -574,8 +582,18 @@ export default function Customer({ initialTable }: { initialTable: number | null
             transition={{ duration: 0.24, delay: 0.06, ease: [0.16, 1, 0.3, 1] }}
           >
             <div className="guest-checkin-intro">
+              {table && (
+                <div className="guest-checkin-qr-pill" data-testid="checkin-table-badge">
+                  <QrCode size={13} strokeWidth={2.4} aria-hidden="true" />
+                  <span>Table {table} QR verified</span>
+                </div>
+              )}
               <h2>Swagat hai!</h2>
-              <p>Menu kholne ke liye apna naam aur mobile number daalo.</p>
+              <p>
+                {table
+                  ? `Table ${table} ka menu kholne ke liye apna naam aur mobile number daalo.`
+                  : 'Menu kholne ke liye apna naam aur mobile number daalo.'}
+              </p>
             </div>
             <div className="guest-field">
               <label htmlFor="guest-name-input" className="field-label" style={{ marginTop: 0 }}>
@@ -673,22 +691,25 @@ export default function Customer({ initialTable }: { initialTable: number | null
     return (
       <div className="guest-welcome">
         <div className="guest-welcome-inner">
-          <div className="guest-step-bar" aria-label="Onboarding progress">
-            <button
-              type="button"
-              className="guest-step-edit"
-              onClick={() => {
-                setGuestNameInput(guestProfile.name);
-                setGuestPhoneInput(guestProfile.phone);
-                setGuestProfile(null);
-              }}
-            >
-              ✓ {guestProfile.name} · Edit
-            </button>
-            <span aria-hidden="true">→</span>
-            <span className="guest-step-item is-active">2. Table</span>
-            <span aria-hidden="true">→</span>
-            <span className="guest-step-item">Menu</span>
+          <div className="guest-welcome-topbar">
+            <div className="guest-step-bar" aria-label="Onboarding progress">
+              <button
+                type="button"
+                className="guest-step-edit"
+                onClick={() => {
+                  setGuestNameInput(guestProfile.name);
+                  setGuestPhoneInput(guestProfile.phone);
+                  setGuestProfile(null);
+                }}
+              >
+                ✓ {guestProfile.name} · Edit
+              </button>
+              <span aria-hidden="true">→</span>
+              <span className="guest-step-item is-active">2. Table</span>
+              <span aria-hidden="true">→</span>
+              <span className="guest-step-item">Menu</span>
+            </div>
+            <ThemeAndSoundControls compact />
           </div>
           <motion.div
             initial={{ scale: 0.5, rotate: -14, opacity: 0 }}
@@ -757,35 +778,49 @@ export default function Customer({ initialTable }: { initialTable: number | null
           ) : (
             <div className="coaster-grid" role="group" aria-label="Table number chuno">
               {visibleTables.map((t, i) => (
-                <motion.button
+                <motion.div
                   key={t.num}
-                  type="button"
-                  className={`coaster-btn ${t.isFree ? 'is-free' : 'is-busy'} ${t.isPrev ? 'is-prev' : ''}`}
-                  aria-label={`Table ${t.num} ${t.isFree ? 'Khali' : 'Busy'}`}
+                  className="coaster-slot"
                   initial={{ scale: 0.6, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  transition={{ ...SPRING, delay: 0.12 + i * 0.04 }}
-                  whileTap={{ scale: 0.93 }}
-                  onClick={() => chooseTable(t.num)}
+                  transition={{ ...SPRING, delay: 0.08 + i * 0.03 }}
                 >
-                  <span className={`coaster-status ${t.isFree ? 'is-free' : 'is-busy'}`}>
-                    {t.isFree ? (
-                      <>
-                        <CheckCircle2 size={11} strokeWidth={2.6} aria-hidden="true" /> Khali
-                      </>
-                    ) : t.isPrev ? (
-                      <>
-                        <Armchair size={11} strokeWidth={2.5} aria-hidden="true" /> Pichhli
-                      </>
-                    ) : (
-                      <>
-                        <Clock size={11} strokeWidth={2.5} aria-hidden="true" /> Busy
-                      </>
-                    )}
-                  </span>
-                  <span>{t.num}</span>
-                  <span className="coaster-sub">{t.waiter}</span>
-                </motion.button>
+                  <motion.button
+                    type="button"
+                    className={`coaster-btn ${t.isFree ? 'is-free' : 'is-busy'} ${t.isPrev ? 'is-prev' : ''}`}
+                    aria-label={`Table ${t.num} ${t.isFree ? 'Khali' : 'Busy'}`}
+                    whileTap={{ scale: 0.93 }}
+                    onClick={() => chooseTable(t.num)}
+                  >
+                    <span className={`coaster-status ${t.isFree ? 'is-free' : 'is-busy'}`}>
+                      {t.isFree ? (
+                        <>
+                          <CheckCircle2 size={11} strokeWidth={2.6} aria-hidden="true" /> Khali
+                        </>
+                      ) : t.isPrev ? (
+                        <>
+                          <Armchair size={11} strokeWidth={2.5} aria-hidden="true" /> Pichhli
+                        </>
+                      ) : (
+                        <>
+                          <Clock size={11} strokeWidth={2.5} aria-hidden="true" /> Busy
+                        </>
+                      )}
+                    </span>
+                    <span>{t.num}</span>
+                    <span className="coaster-sub">{t.waiter}</span>
+                  </motion.button>
+                  <button
+                    type="button"
+                    className="coaster-qr-btn"
+                    data-testid={`picker-table-qr-${t.num}`}
+                    aria-label={`Table ${t.num} QR code`}
+                    onClick={() => setQrModalTable(t.num)}
+                  >
+                    <QrCode size={11} strokeWidth={2.3} aria-hidden="true" />
+                    <span>T{t.num} QR</span>
+                  </button>
+                </motion.div>
               ))}
             </div>
           )}
@@ -808,6 +843,12 @@ export default function Customer({ initialTable }: { initialTable: number | null
             <DeveloperContactButton compact />
           </footer>
         </div>
+
+        <TableQrSheet
+          tableNum={qrModalTable}
+          waiterName={qrModalTable ? waiterOf(state, qrModalTable) : undefined}
+          onClose={() => setQrModalTable(null)}
+        />
       </div>
     );
   }
@@ -839,13 +880,23 @@ export default function Customer({ initialTable }: { initialTable: number | null
         <div className="guest-head-right">
           <button
             type="button"
+            className="guest-qr-btn"
+            data-testid="guest-active-table-qr-btn"
+            onClick={() => setQrModalTable(table)}
+            aria-label={`Table ${table} QR code`}
+          >
+            <QrCode size={14} strokeWidth={2.3} aria-hidden="true" />
+            <span>T{table} QR</span>
+          </button>
+          <button
+            type="button"
             className={`guest-help-btn ${openCalls.length > 0 ? 'has-pending' : ''}`}
             onClick={() => setHelpOpen(true)}
             aria-label="Waiter ya madad bulao"
           >
             <span className="dish-inline-label" style={{ gap: 5 }}>
               <Bell size={14} strokeWidth={2.4} className="guest-help-bell" aria-hidden="true" />
-              <span>{openCalls.length > 0 ? 'Waiter On Way' : 'Help'}</span>
+              <span>{openCalls.length > 0 ? 'On Way' : 'Help'}</span>
             </span>
           </button>
           <motion.div
@@ -863,6 +914,10 @@ export default function Customer({ initialTable }: { initialTable: number | null
       </header>
 
       <main className="guest-content">
+        <div className="guest-mode-strip">
+          <span className="guest-mode-label">Theme &amp; Anime Sound</span>
+          <ThemeAndSoundControls />
+        </div>
         <AnimatePresence mode="wait">
           {/* ============ MENU TAB ============ */}
           {tab === 'menu' && (
@@ -2402,6 +2457,12 @@ export default function Customer({ initialTable }: { initialTable: number | null
           </motion.div>
         )}
       </AnimatePresence>
+
+      <TableQrSheet
+        tableNum={qrModalTable}
+        waiterName={qrModalTable ? waiterOf(state, qrModalTable) : undefined}
+        onClose={() => setQrModalTable(null)}
+      />
     </div>
   );
 }

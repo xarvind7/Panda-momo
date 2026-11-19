@@ -10,17 +10,16 @@ import {
   Flame,
   LayoutGrid,
   QrCode,
-  RotateCcw,
   ShieldCheck,
   Sparkles,
   UtensilsCrossed,
 } from 'lucide-react';
 import { BRAND } from '../data';
-import { resetDemo, useStore } from '../store';
+import { useStore } from '../store';
 import { showSakugaToast } from '../sakuga';
 import { buildMasterQrUrl, computeLandingSummary } from '../landingSummary';
 import { FoodQr, renderFoodQrStandeePng } from '../components/FoodQr';
-import { ConfirmDialog, CountUp, DeveloperContactButton, Logo, SPRING } from '../ui';
+import { CountUp, DeveloperContactButton, Logo, SPRING, ThemeAndSoundControls } from '../ui';
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
@@ -37,8 +36,6 @@ export default function Landing() {
   }, []);
 
   const [copiedLink, setCopiedLink] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [resetMsg, setResetMsg] = useState('');
   const [heroImgFailed, setHeroImgFailed] = useState(false);
   const [bannerImgFailed, setBannerImgFailed] = useState(false);
 
@@ -92,14 +89,6 @@ export default function Landing() {
     }
   }
 
-  function handleConfirmReset() {
-    resetDemo();
-    setConfirmOpen(false);
-    setResetMsg('Demo data reset ho gaya!');
-    showSakugaToast('Demo data reset ho gaya!', 'gold', 'RESET!');
-    window.setTimeout(() => setResetMsg(''), 2500);
-  }
-
   const secondaryWorkspaces = useMemo(
     () => [
       {
@@ -145,11 +134,14 @@ export default function Landing() {
             <a href="#/owner">Reports</a>
           </nav>
 
-          <a href="#/m" className="btn btn-sm landing-nav-cta">
-            <UtensilsCrossed size={14} strokeWidth={2.2} aria-hidden="true" />
-            <span>Open Menu</span>
-            <ArrowRight size={14} strokeWidth={2.3} aria-hidden="true" />
-          </a>
+          <div className="landing-topbar-right">
+            <ThemeAndSoundControls />
+            <a href="#/m" className="btn btn-sm landing-nav-cta">
+              <UtensilsCrossed size={14} strokeWidth={2.2} aria-hidden="true" />
+              <span>Open Menu</span>
+              <ArrowRight size={14} strokeWidth={2.3} aria-hidden="true" />
+            </a>
+          </div>
         </div>
       </header>
 
@@ -568,35 +560,12 @@ export default function Landing() {
             <span className="landing-footer-brand">{BRAND}</span>
             <span className="landing-footer-sep" aria-hidden="true">·</span>
             <span className="landing-footer-note">Single-QR Ordering &amp; Restaurant CRM</span>
-            {resetMsg && (
-              <span className="landing-reset-toast" role="status">
-                {resetMsg}
-              </span>
-            )}
           </div>
           <div className="landing-footer-actions">
-            <button
-              type="button"
-              className="chip"
-              onClick={() => setConfirmOpen(true)}
-            >
-              <RotateCcw size={14} strokeWidth={2.2} aria-hidden="true" />
-              <span>Demo data reset karo</span>
-            </button>
             <DeveloperContactButton compact />
           </div>
         </footer>
       </main>
-
-      <ConfirmDialog
-        open={confirmOpen}
-        title="Demo data reset karo?"
-        message="Saare orders, calls aur stock fresh demo data par wapas aa jayenge."
-        confirmLabel="Haan, reset karo"
-        danger
-        onConfirm={handleConfirmReset}
-        onCancel={() => setConfirmOpen(false)}
-      />
     </div>
   );
 }

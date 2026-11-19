@@ -8,6 +8,7 @@ import Kitchen from './pages/Kitchen';
 import Owner from './pages/Owner';
 import { SakugaCanvas, SakugaToastHost } from './ui';
 import { inferSfxFromLabel, triggerSakuga } from './sakuga';
+import { classifyAnimeTouchSound, initThemeMode, playAnimeSfx } from './themeAudio';
 
 function readHash(): string {
   if (window.location.hash) {
@@ -36,6 +37,10 @@ export default function App() {
   const [hash, setHash] = useState<string>(readHash);
 
   useEffect(() => {
+    initThemeMode();
+  }, []);
+
+  useEffect(() => {
     const onNavChange = () => setHash(readHash());
     window.addEventListener('hashchange', onNavChange);
     window.addEventListener('popstate', onNavChange);
@@ -45,13 +50,35 @@ export default function App() {
     };
   }, []);
 
-  // Global Sakuga VFX delegation for buttons, chips, coasters, and tabs
+  // Global Anime-Style Sound SFX on EVERY touch + Sakuga VFX delegation
   useEffect(() => {
+    const onPointerDown = (ev: PointerEvent) => {
+      const target = ev.target as Element | null;
+      if (!target) return;
+      const interactive = target.closest(
+        'button, a, [role="button"], [role="tab"], [role="switch"], [role="radio"], input, select, label'
+      );
+      if (interactive instanceof HTMLButtonElement && interactive.disabled) return;
+      // Avoid double sound on the SFX toggle itself (it plays its own confirmation sound)
+      if (interactive?.classList.contains('sfx-toggle-btn')) return;
+
+      const label = (
+        interactive?.textContent ||
+        interactive?.getAttribute('aria-label') ||
+        ''
+      ).trim();
+      const classNames = interactive?.className ? String(interactive.className) : '';
+      const tagName = interactive?.tagName || target.tagName || '';
+
+      const sfxType = classifyAnimeTouchSound(label, classNames, tagName);
+      playAnimeSfx(sfxType);
+    };
+
     const onClick = (ev: MouseEvent) => {
       const target = ev.target as Element | null;
       if (!target) return;
       const btn = target.closest(
-        'button.btn, button.add-outline-btn, button.coaster-btn, button.chip, button.chip-dark, button.cat-pill, button.cart-bar, button.stepper-btn'
+        'button.btn, button.add-outline-btn, button.coaster-btn, button.chip, button.chip-dark, button.cat-pill, button.cart-bar, button.stepper-btn, button.guest-qr-btn, button.coaster-qr-btn, button.quick-help-card'
       ) as HTMLButtonElement | null;
       if (!btn || btn.disabled) return;
 
@@ -60,8 +87,8 @@ export default function App() {
 
       if (btn.classList.contains('btn') || btn.classList.contains('coaster-btn') || btn.classList.contains('cart-bar')) {
         triggerSakuga(btn, 'primary', sfx);
-      } else if (btn.classList.contains('add-outline-btn') || btn.classList.contains('stepper-btn')) {
-        triggerSakuga(btn, 'spark', btn.classList.contains('add-outline-btn') ? 'ADD!' : undefined);
+      } else if (btn.classList.contains('add-outline-btn') || btn.classList.contains('stepper-btn') || btn.classList.contains('quick-help-card')) {
+        triggerSakuga(btn, 'spark', btn.classList.contains('add-outline-btn') ? 'ADD!' : sfx);
       } else if (btn.classList.contains('cat-pill')) {
         triggerSakuga(btn, 'slash');
       } else {
@@ -69,8 +96,12 @@ export default function App() {
       }
     };
 
+    document.addEventListener('pointerdown', onPointerDown, true);
     document.addEventListener('click', onClick, true);
-    return () => document.removeEventListener('click', onClick, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('click', onClick, true);
+    };
   }, []);
 
   let page;

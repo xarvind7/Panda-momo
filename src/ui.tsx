@@ -8,6 +8,10 @@ import {
   Github,
   Instagram,
   MessageCircle,
+  Moon,
+  Sun,
+  Volume2,
+  VolumeX,
   X,
 } from 'lucide-react';
 import {
@@ -19,6 +23,14 @@ import {
   subscribeToasts,
   triggerSakuga,
 } from './sakuga';
+import {
+  playAnimeSfx,
+  setAnimeSfxEnabled,
+  setThemeMode,
+  toggleThemeMode,
+  useAnimeSfxEnabled,
+  useThemeMode,
+} from './themeAudio';
 
 export const SPRING = { type: 'spring' as const, stiffness: 380, damping: 32 };
 export const SAKUGA_SPRING = { type: 'spring' as const, stiffness: 520, damping: 20, mass: 0.7 };
@@ -549,12 +561,71 @@ export function ConfirmDialog({
   );
 }
 
+/** Compact Normal/Dark mode + Anime Touch SFX toggle controls. */
+export function ThemeAndSoundControls({
+  compact = false,
+  className = '',
+}: {
+  compact?: boolean;
+  className?: string;
+}) {
+  const theme = useThemeMode();
+  const sfxOn = useAnimeSfxEnabled();
+  const isDark = theme === 'dark';
+
+  return (
+    <div className={`mode-controls ${compact ? 'is-compact' : ''} ${className}`.trim()}>
+      <button
+        type="button"
+        className={`theme-mode-btn ${isDark ? 'is-dark' : 'is-normal'}`}
+        data-testid="theme-mode-toggle"
+        aria-pressed={isDark}
+        aria-label={isDark ? 'Switch to Normal Mode' : 'Switch to Dark Mode'}
+        title={isDark ? 'Normal Mode lagao' : 'Dark Mode lagao'}
+        onClick={() => {
+          const next = toggleThemeMode(theme);
+          setThemeMode(next);
+          playAnimeSfx('tab');
+        }}
+      >
+        {isDark ? (
+          <Sun size={compact ? 13 : 14} strokeWidth={2.3} aria-hidden="true" />
+        ) : (
+          <Moon size={compact ? 13 : 14} strokeWidth={2.3} aria-hidden="true" />
+        )}
+        {!compact && <span>{isDark ? 'Normal' : 'Dark'}</span>}
+      </button>
+
+      <button
+        type="button"
+        className={`sfx-toggle-btn ${sfxOn ? 'is-on' : 'is-off'}`}
+        data-testid="anime-sfx-toggle"
+        aria-pressed={sfxOn}
+        aria-label={sfxOn ? 'Mute anime touch sounds' : 'Enable anime touch sounds'}
+        title={sfxOn ? 'Anime Touch Sound: ON' : 'Anime Touch Sound: OFF'}
+        onClick={() => {
+          const next = !sfxOn;
+          setAnimeSfxEnabled(next);
+          if (next) playAnimeSfx('add');
+        }}
+      >
+        {sfxOn ? (
+          <Volume2 size={compact ? 13 : 14} strokeWidth={2.3} aria-hidden="true" />
+        ) : (
+          <VolumeX size={compact ? 13 : 14} strokeWidth={2.3} aria-hidden="true" />
+        )}
+        {!compact && <span>{sfxOn ? 'SFX' : 'Mute'}</span>}
+      </button>
+    </div>
+  );
+}
+
 const DEV_WHATSAPP = '9334208980';
 const DEV_GITHUB = 'https://github.com/xarvind7';
 const DEV_INSTAGRAM_HANDLE = '@xarvind07';
 const DEV_INSTAGRAM_URL = 'https://instagram.com/xarvind07';
 
-/** Compact Contact Developer button that opens a Developer Info modal on click. */
+/** Compact Contact Developer button that opens a small, sleek Developer Info card on tap. */
 export function DeveloperContactButton({
   dark = false,
   compact = false,
@@ -576,6 +647,42 @@ export function DeveloperContactButton({
     window.setTimeout(() => setCopiedKey((curr) => (curr === key ? null : curr)), 2000);
   }
 
+  const rows: Array<{
+    key: 'wa' | 'ig' | 'gh';
+    Icon: typeof MessageCircle;
+    label: string;
+    value: string;
+    copyVal: string;
+    href: string;
+    accent?: string;
+  }> = [
+    {
+      key: 'wa',
+      Icon: MessageCircle,
+      label: 'WhatsApp',
+      value: `+91 ${DEV_WHATSAPP}`,
+      copyVal: DEV_WHATSAPP,
+      href: `https://wa.me/91${DEV_WHATSAPP}`,
+      accent: 'is-wa',
+    },
+    {
+      key: 'ig',
+      Icon: Instagram,
+      label: 'Instagram',
+      value: DEV_INSTAGRAM_HANDLE,
+      copyVal: DEV_INSTAGRAM_HANDLE,
+      href: DEV_INSTAGRAM_URL,
+    },
+    {
+      key: 'gh',
+      Icon: Github,
+      label: 'GitHub',
+      value: 'xarvind7',
+      copyVal: DEV_GITHUB,
+      href: DEV_GITHUB,
+    },
+  ];
+
   return (
     <>
       <button
@@ -589,14 +696,14 @@ export function DeveloperContactButton({
           .join(' ')}
         onClick={() => setOpen(true)}
       >
-        <Code2 size={15} strokeWidth={2.2} aria-hidden="true" />
+        <Code2 size={14} strokeWidth={2.2} aria-hidden="true" />
         <span>Contact Developer</span>
       </button>
 
       <AnimatePresence>
         {open && (
           <motion.div
-            className="modal-backdrop"
+            className="modal-backdrop dev-modal-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -606,134 +713,65 @@ export function DeveloperContactButton({
               role="dialog"
               aria-modal="true"
               aria-labelledby="dev-modal-title"
-              className={`dev-modal ${dark ? 'dark' : ''}`}
-              initial={{ scale: 0.88, opacity: 0, y: 18 }}
+              data-testid="dev-compact-modal"
+              className={`dev-modal dev-modal-compact ${dark ? 'dark' : ''}`}
+              initial={{ scale: 0.86, opacity: 0, y: 12 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.88, opacity: 0, y: 18 }}
+              exit={{ scale: 0.86, opacity: 0, y: 12 }}
               transition={SAKUGA_SPRING}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="dev-modal-head">
-                <span className="dev-badge">DEVELOPER INFO</span>
+                <div style={{ minWidth: 0 }}>
+                  <span className="dev-badge">DEVELOPER</span>
+                  <h3 id="dev-modal-title" className="dev-modal-title">
+                    xarvind07
+                  </h3>
+                </div>
                 <button
                   type="button"
-                  className={dark ? 'btn-ghost-dark' : 'sheet-close'}
+                  className={dark ? 'btn-ghost-dark dev-close-mini' : 'sheet-close dev-close-mini'}
                   aria-label="Developer info band karo"
                   onClick={() => setOpen(false)}
                 >
-                  <X size={16} strokeWidth={2.4} aria-hidden="true" />
+                  <X size={14} strokeWidth={2.5} aria-hidden="true" />
                 </button>
               </div>
 
-              <h3 id="dev-modal-title" className="dev-modal-title">
-                Developed by xarvind07
-              </h3>
-              <p className="dev-modal-sub">
-                Custom restaurant app, setup ya support ke liye seedha connect karo.
-              </p>
-
               <div className="dev-info-list">
-                <div className="dev-info-row">
-                  <div className="dev-info-meta">
-                    <span className="dev-info-label">
-                      <MessageCircle size={13} strokeWidth={2.2} aria-hidden="true" /> WhatsApp Number
-                    </span>
-                    <strong className="dev-info-val">+91 {DEV_WHATSAPP}</strong>
+                {rows.map(({ key, Icon, label, value, copyVal, href, accent }) => (
+                  <div key={key} className="dev-info-row">
+                    <div className="dev-info-meta">
+                      <span className="dev-info-icon" aria-hidden="true">
+                        <Icon size={13} strokeWidth={2.2} />
+                      </span>
+                      <strong className="dev-info-val">{value}</strong>
+                    </div>
+                    <div className="dev-info-actions">
+                      <button
+                        type="button"
+                        className="dev-mini-btn"
+                        aria-label={`Copy ${label}`}
+                        onClick={() => handleCopy(copyVal, key, label)}
+                      >
+                        {copiedKey === key ? (
+                          <Check size={12} strokeWidth={2.6} aria-hidden="true" />
+                        ) : (
+                          <Copy size={12} strokeWidth={2.2} aria-hidden="true" />
+                        )}
+                      </button>
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`dev-mini-link ${accent || ''}`}
+                        aria-label={`Open ${label}`}
+                      >
+                        <ExternalLink size={12} strokeWidth={2.3} aria-hidden="true" />
+                      </a>
+                    </div>
                   </div>
-                  <div className="dev-info-actions">
-                    <button
-                      type="button"
-                      className={dark ? 'btn-ghost-dark' : 'chip'}
-                      onClick={() => handleCopy(DEV_WHATSAPP, 'wa', 'WhatsApp number')}
-                    >
-                      {copiedKey === 'wa' ? (
-                        <>
-                          <Check size={14} strokeWidth={2.4} aria-hidden="true" /> Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy size={14} strokeWidth={2.2} aria-hidden="true" /> Copy
-                        </>
-                      )}
-                    </button>
-                    <a
-                      href={`https://wa.me/91${DEV_WHATSAPP}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-sm btn-green"
-                    >
-                      WhatsApp <ExternalLink size={13} strokeWidth={2.3} aria-hidden="true" />
-                    </a>
-                  </div>
-                </div>
-
-                <div className="dev-info-row">
-                  <div className="dev-info-meta">
-                    <span className="dev-info-label">
-                      <Instagram size={13} strokeWidth={2.2} aria-hidden="true" /> Instagram
-                    </span>
-                    <strong className="dev-info-val">{DEV_INSTAGRAM_HANDLE}</strong>
-                  </div>
-                  <div className="dev-info-actions">
-                    <button
-                      type="button"
-                      className={dark ? 'btn-ghost-dark' : 'chip'}
-                      onClick={() => handleCopy(DEV_INSTAGRAM_HANDLE, 'ig', 'Instagram handle')}
-                    >
-                      {copiedKey === 'ig' ? (
-                        <>
-                          <Check size={14} strokeWidth={2.4} aria-hidden="true" /> Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy size={14} strokeWidth={2.2} aria-hidden="true" /> Copy
-                        </>
-                      )}
-                    </button>
-                    <a
-                      href={DEV_INSTAGRAM_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-sm"
-                    >
-                      Instagram <ExternalLink size={13} strokeWidth={2.3} aria-hidden="true" />
-                    </a>
-                  </div>
-                </div>
-
-                <div className="dev-info-row">
-                  <div className="dev-info-meta">
-                    <span className="dev-info-label">
-                      <Github size={13} strokeWidth={2.2} aria-hidden="true" /> GitHub Account
-                    </span>
-                    <strong className="dev-info-val">github.com/xarvind7</strong>
-                  </div>
-                  <div className="dev-info-actions">
-                    <button
-                      type="button"
-                      className={dark ? 'btn-ghost-dark' : 'chip'}
-                      onClick={() => handleCopy(DEV_GITHUB, 'gh', 'GitHub link')}
-                    >
-                      {copiedKey === 'gh' ? (
-                        <>
-                          <Check size={14} strokeWidth={2.4} aria-hidden="true" /> Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy size={14} strokeWidth={2.2} aria-hidden="true" /> Copy
-                        </>
-                      )}
-                    </button>
-                    <a
-                      href={DEV_GITHUB}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-sm"
-                    >
-                      GitHub <ExternalLink size={13} strokeWidth={2.3} aria-hidden="true" />
-                    </a>
-                  </div>
-                </div>
+                ))}
               </div>
             </motion.div>
           </motion.div>
